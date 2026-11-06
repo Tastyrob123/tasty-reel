@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tasty Studios · Reel</title>
+<!-- Vorschau des Reels: das iPhone der Websites (three.js, Einstellungen wie film/telefon3d.html), das Reel läuft auf dem Bildschirm.
+     Einflug «web» wie auf den Websites (3,8 s), Endlage frontal (y π + 0,12, x −0,13), Zeichen hinten weiss. -->
+<style>
+@font-face{font-family:Antonio;src:url(film/Antonio-normal-100_700.woff2) format('woff2');font-weight:100 700}
+@font-face{font-family:Instrument;src:url(film/InstrumentSans-normal-400_600.woff2) format('woff2');font-weight:400 600}
+@font-face{font-family:Cormorant;src:url(film/cormorant-garamond-400-italic-latin.woff2) format('woff2');font-weight:400;font-style:italic}
+@font-face{font-family:CormorantR;src:url(film/cormorant-garamond-500-latin.woff2) format('woff2');font-weight:500}
+:root{--grund:#111421;--creme:#ebdbce;--messing:#c7b489;--leise:#9a917f}
+html,body{margin:0;background:var(--grund);color:var(--creme);font-family:Instrument,-apple-system,system-ui,sans-serif}
+body{opacity:0}body.da{opacity:1}
+main{position:relative;min-height:100vh;display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr);align-items:center;max-width:1440px;margin:0 auto;padding:0 64px;box-sizing:border-box;overflow:hidden}
+.licht{position:absolute;right:-6%;top:50%;width:62vw;height:62vw;max-width:980px;max-height:980px;transform:translateY(-50%);background:radial-gradient(closest-side,rgba(214,180,128,.20),rgba(214,180,128,.07) 55%,transparent);pointer-events:none}
+.text{position:relative;z-index:2;max-width:480px}
+.kap{font-family:Antonio;font-weight:500;font-size:15px;letter-spacing:.26em;text-transform:uppercase;color:var(--messing);margin:0 0 30px}
+h1{font-family:Antonio;font-weight:700;text-transform:uppercase;font-size:clamp(44px,4.4vw,68px);line-height:1.13;letter-spacing:-.004em;color:#fff;margin:0 0 34px}
+.satz{font-size:19px;line-height:1.55;color:var(--creme);opacity:.86;margin:0 0 40px;max-width:440px}
+.kn{display:inline-flex;align-items:center;gap:18px;padding:10px 10px 10px 28px;border:0;border-radius:999px;background:var(--creme);color:var(--grund);font:500 17px Instrument,system-ui;cursor:pointer;box-shadow:0 1px 0 rgba(255,255,255,.6) inset,0 18px 40px -18px rgba(0,0,0,.8)}
+.kn i{display:grid;place-items:center;width:44px;height:44px;border-radius:50%;background:var(--grund);color:var(--creme)}
+.kn svg{width:15px;height:15px;fill:currentColor}
+.lauf{margin-top:34px;max-width:420px;height:2px;cursor:pointer;padding:9px 0;background-clip:content-box;box-sizing:content-box;background:rgba(235,219,206,.14);border-radius:2px;overflow:hidden}
+.lauf{background-clip:content-box}
+.lauf b{display:block;height:100%;width:0;background:var(--messing)}
+.zeit{margin-top:12px;font-family:Antonio;font-size:13px;letter-spacing:.2em;color:var(--leise)}
+.fuss{position:absolute;left:64px;bottom:30px;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--leise)}
+.buehne{position:relative;z-index:1;height:100vh;min-height:720px}
+canvas{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:pointer}
+video{position:absolute;display:block;object-fit:fill;background:#000;opacity:0;pointer-events:none;z-index:2}
+video.da{opacity:1}
+@media (max-width:900px){
+  main{grid-template-columns:1fr;padding:40px 16px 70px;align-content:start}
+  .text{order:2;text-align:left}
+  .buehne{order:1;height:74vh;min-height:520px}
+  .licht{right:auto;left:50%;top:38vh;width:120vw;height:120vw;transform:translate(-50%,-50%)}
+  h1{font-size:clamp(50px,14vw,76px)}
+  .satz{font-size:18px}
+  .fuss{left:16px;bottom:22px}
+}
+</style>
+<script type="importmap">{"imports":{"three":"./film/three/three.module.min.js"}}</script>
+</head>
+<body>
+<main>
+  <div class="licht" aria-hidden="true"></div>
+  <div class="text">
+    <p class="kap">Tasty Studios · Instagram</p>
+    <h1>Hospitality,<br>digital neu gedacht.</h1>
+    <p class="satz">Das Reel für Instagram: was Hotels und Restaurants von uns bekommen, und warum KI-Systeme ein Haus danach finden.</p>
+    <button class="kn" id="ton">Abspielen<i><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5 3.2v9.6L12.6 8z"/></svg></i></button>
+    <div class="lauf"><b id="lauf"></b></div>
+    <div class="zeit" id="zeit"></div>
+  </div>
+  <div class="buehne" id="buehne"><canvas id="cv" aria-label="Das Reel von Tasty Studios auf einem iPhone" role="img"></canvas><video id="film" src="out/reel5-vorschau.mp4?v=4" playsinline preload="auto" loop></video></div>
+  <p class="fuss">Musik: Luxurious Real Estate (Pixabay)</p>
+</main>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from './film/three/loaders/GLTFLoader.js';
+import { RoomEnvironment } from './film/three/environments/RoomEnvironment.js';
+
+const cv = document.getElementById('cv'), film = document.getElementById('film');
+const R = new THREE.WebGLRenderer({ canvas: cv, antialias: true, alpha: true });
+R.setPixelRatio(Math.min(1.5, devicePixelRatio));
+R.toneMapping = THREE.ACESFilmicToneMapping; R.outputColorSpace = THREE.SRGBColorSpace;
+const S = new THREE.Scene();
+S.environment = new THREE.PMREMGenerator(R).fromScene(new RoomEnvironment(), .04).texture;
+const K = new THREE.PerspectiveCamera(30, 1, .01, 50);
+const L = new THREE.DirectionalLight(0xffffff, 1.4); L.position.set(.3, .8, .4); S.add(L);
+// warmes Gegenlicht von hinten links, damit das dunkle Gehäuse sich vom dunklen Grund löst
+const G = new THREE.DirectionalLight(0xf3d8b0, .9); G.position.set(-.6, .3, -.8); S.add(G);
+const U = q => 1 - Math.pow(1 - q, 5), IO = q => q < .5 ? 4 * q * q * q : 1 - Math.pow(-2 * q + 2, 3) / 2;
+const klemm = x => Math.min(1, Math.max(0, x)), DREH = .12;
+
+// Bildschirm: Reels-Ansicht (1080 × 2336), das Reel in voller Breite, darüber Uhrzeit, darunter das Profil
+const B = document.createElement('canvas'); B.width = 720; B.height = 1557;
+const c = B.getContext('2d', { alpha: false });
+c.scale(720 / 1080, 720 / 1080);   // gezeichnet wird in 1080er-Massen
+const logo = new Image(); logo.src = 'film/logo-ruecken.png';
+const tex = new THREE.Texture(B); tex.colorSpace = THREE.SRGBColorSpace;
+function schirm() {
+  c.fillStyle = '#000'; c.fillRect(0, 0, 1080, 2336);
+  const y0 = 208;   // Reel mittig, oben und unten gleich viel Schwarz
+  if (film.readyState >= 2) c.drawImage(film, 0, y0, 1080, 1920);
+  c.fillStyle = '#fff'; c.font = '600 46px Instrument, -apple-system, sans-serif'; c.textBaseline = 'middle';
+  c.fillText('9:41', 112, 72);
+  // Akku, Netz
+  c.fillRect(858, 58, 20, 28); c.fillRect(886, 50, 20, 36); c.fillRect(914, 42, 20, 44);
+  c.strokeStyle = '#fff'; c.lineWidth = 3; c.beginPath(); c.roundRect(950, 50, 70, 36, 9); c.stroke(); c.fillRect(956, 56, 52, 24);
+  tex.needsUpdate = true;
+}
+
+let H = null, groesse = null, t0 = null, schirmMesh = null;
+async function modell() {
+  const gltf = await new GLTFLoader().loadAsync('blender/iphone17.glb');
+  const T = gltf.scene, logos = [];
+  T.traverse(m => {
+    if (!m.isMesh) return;
+    if (m.material && m.material.name === '17ProMax_Logo') { logos.push(m); return; }
+    const ma = m.material;
+    if (ma && ma.name === '17ProMax_glass') { ma.opacity = .05; ma.needsUpdate = true; }
+    if (ma && ma.name === '17ProMax_Screen') {
+      if (ma.map) { tex.wrapS = ma.map.wrapS; tex.wrapT = ma.map.wrapT; tex.repeat.copy(ma.map.repeat); tex.offset.copy(ma.map.offset); tex.center.copy(ma.map.center); tex.rotation = ma.map.rotation; tex.flipY = ma.map.flipY; } else tex.flipY = false;
+      const neu = new THREE.MeshBasicMaterial({ map: tex, toneMapped: false }); neu.name = ma.name; neu.side = ma.side; m.material = neu; schirmMesh = m;
+    }
+  });
+  if (logos.length) {
+    T.updateMatrixWorld(true);
+    const lb = new THREE.Box3(); logos.forEach(m => { lb.expandByObject(m); m.visible = false; });
+    const gb = new THREE.Box3().setFromObject(T), lc = lb.getCenter(new THREE.Vector3()), ls = lb.getSize(new THREE.Vector3()), gc = gb.getCenter(new THREE.Vector3());
+    const tx = await new THREE.TextureLoader().loadAsync('film/logo-ruecken.png'); tx.colorSpace = THREE.SRGBColorSpace; tx.anisotropy = 4;
+    const w = Math.max(ls.x, ls.y) * 1.9, h = w * tx.image.height / tx.image.width;
+    const z = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshStandardMaterial({ map: tx, transparent: true, metalness: .15, roughness: .4, depthWrite: false }));
+    const seite = lc.z >= gc.z ? 1 : -1;
+    z.position.set(lc.x, lc.y, (seite > 0 ? lb.max.z : lb.min.z) + seite * 4e-4); if (seite < 0) z.rotation.y = Math.PI;
+    T.add(z);
+  }
+  const box = new THREE.Box3().setFromObject(T); groesse = box.getSize(new THREE.Vector3());
+  T.position.sub(box.getCenter(new THREE.Vector3()));
+  H = new THREE.Group(); H.add(T); S.add(H);
+}
+
+function groesseSetzen() {
+  const r = cv.getBoundingClientRect();
+  R.setSize(r.width, r.height, false); K.aspect = r.width / r.height; K.updateProjectionMatrix();
+}
+addEventListener('resize', () => { groesseSetzen(); if (gelandet) { bild(t0 + 3800); videoLage(); } });
+
+function bild(now) {
+  if (!H) return;
+  const t = (now - t0) / 1000, h = groesse.y;
+  const hoch = .95, hoehe = h / hoch;
+  // Kamera so weit weg, dass das Handy den Anteil «hoch» der Höhe einnimmt (bei schmalen Bühnen die Breite beachten)
+  const breiteNoetig = groesse.x * 1.4 / K.aspect;
+  const g = Math.max(hoehe, breiteNoetig) / (2 * Math.tan(THREE.MathUtils.degToRad(15)));
+  const q = klemm(t / 3.8), j = U(q), k = IO(q);
+  H.position.set(0, -h * 1.8 * (1 - j), 0);
+  H.rotation.set(-.02 * (1 - k), Math.PI * k, 0);   // Endlage ganz frontal und gerade (Robert 06.11.2026: «kein Kompromiss»)
+  const kz = 1.07 - .07 * k;
+  K.position.set(0, 0, g * kz); K.lookAt(0, 0, 0);
+  R.render(S, K);
+}
+// Wo liegt das Reel (Zeilen 208 bis 2128 des Bildschirmbilds) auf der Seite? Aus den Bildschirm-Ecken des Modells in der Endlage.
+function videoLage() {
+  const g = schirmMesh.geometry, P = g.attributes.position, UV = g.attributes.uv;
+  tex.updateMatrix(); schirmMesh.updateMatrixWorld(true);
+  // Lage = A · (u, v, 1): kleinste Quadrate über alle Ecken
+  const M = [[0,0,0],[0,0,0],[0,0,0]], rx = [0,0,0], ry = [0,0,0], rz = [0,0,0];
+  const w = new THREE.Vector3(), u = new THREE.Vector2();
+  for (let i = 0; i < P.count; i++) {
+    u.fromBufferAttribute(UV, i).applyMatrix3(tex.matrix);
+    w.fromBufferAttribute(P, i).applyMatrix4(schirmMesh.matrixWorld);
+    const a = [u.x, u.y, 1];
+    for (let r = 0; r < 3; r++) { for (let c2 = 0; c2 < 3; c2++) M[r][c2] += a[r] * a[c2]; rx[r] += a[r] * w.x; ry[r] += a[r] * w.y; rz[r] += a[r] * w.z; }
+  }
+  const inv = new THREE.Matrix3().set(...M[0], ...M[1], ...M[2]).invert();
+  const loes = b => new THREE.Vector3(...b).applyMatrix3(inv);
+  const cx = loes(rx), cy = loes(ry), cz = loes(rz);
+  const bild = (uu, vv) => new THREE.Vector3(cx.x * uu + cx.y * vv + cx.z, cy.x * uu + cy.y * vv + cy.z, cz.x * uu + cz.y * vv + cz.z);
+  const zeile = y => tex.flipY ? 1 - y / 2336 : y / 2336;
+  const r = cv.getBoundingClientRect(); let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
+  for (const [uu, yy] of [[0, 208], [1, 208], [0, 2128], [1, 2128]]) {
+    const p = bild(uu, zeile(yy)).project(K);
+    const px = (p.x + 1) / 2 * r.width, py = (1 - p.y) / 2 * r.height;
+    x0 = Math.min(x0, px); x1 = Math.max(x1, px); y0 = Math.min(y0, py); y1 = Math.max(y1, py);
+  }
+  Object.assign(film.style, { left: x0 + 'px', top: y0 + 'px', width: (x1 - x0) + 'px', height: (y1 - y0) + 'px' });
+}
+// Einflug in 3D; danach steht das Handy still und das Reel läuft als echtes Video genau im Bildschirm (so flüssig wie ohne Handy)
+let gelandet = false;
+function landen() { gelandet = true; bild(t0 + 3800); videoLage(); film.classList.add('da'); film.controls = true; film.currentTime = 0; film.play().catch(() => {}); }
+function lauf(now) {
+  if (!gelandet) { if (now - t0 >= 3800) landen(); else bild(now); }
+  const d = film.duration || 0;
+  if (d) {
+    document.getElementById('lauf').style.width = (100 * film.currentTime / d) + '%';
+    const f = s => Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
+    document.getElementById('zeit').textContent = f(film.currentTime) + ' / ' + f(d);
+  }
+  requestAnimationFrame(lauf);
+}
+
+// Erster Blick komplett: Seite erscheint erst, wenn Modell, Schrift und das erste Bild des Reels da sind
+const bereitFilm = new Promise(r => { if (film.readyState >= 2) r(); else film.addEventListener('loadeddata', r, { once: true }); setTimeout(r, 6000); });
+film.addEventListener('loadeddata', () => { if (!gelandet && H) schirm(); }, { once: true });
+await Promise.all([modell(), bereitFilm, document.fonts.ready, new Promise(r => logo.complete ? r() : (logo.onload = logo.onerror = r))]);
+schirm();   // erstes Bild des Reels auf dem Bildschirm, solange das Handy einfliegt
+groesseSetzen();
+t0 = performance.now();
+document.body.classList.add('da');
+requestAnimationFrame(lauf);
+
+const ton = document.getElementById('ton');
+const knopf = () => { ton.firstChild.textContent = film.paused ? 'Abspielen' : 'Pause'; };
+film.addEventListener('play', knopf); film.addEventListener('pause', knopf);
+ton.addEventListener('click', () => { if (film.paused) film.play(); else film.pause(); });
+film.style.pointerEvents = 'auto';
+// Laufleiste links: anklicken oder ziehen springt im Reel
+const leiste = document.querySelector('.lauf');
+const springe = e => { const r = leiste.getBoundingClientRect(); if (film.duration) film.currentTime = film.duration * Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)); };
+leiste.addEventListener('pointerdown', e => { leiste.setPointerCapture(e.pointerId); springe(e); leiste.onpointermove = springe; });
+leiste.addEventListener('pointerup', () => { leiste.onpointermove = null; });
+cv.addEventListener('click', () => { if (film.paused) film.play(); else film.pause(); });
+</script>
+</body></html>
